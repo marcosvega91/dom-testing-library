@@ -343,6 +343,30 @@ Here are the accessible roles:
 `)
 })
 
+test('should show the correct role in the error message', () => {
+  const {getByRole} = render(`<button role="tab" />`)
+  expect(() => getByRole('button')).toThrowErrorMatchingInlineSnapshot(`
+"Unable to find an accessible element with the role "button"
+
+Here are the accessible roles:
+
+  tab:
+
+  Name "":
+  <button
+    role="tab"
+  />
+
+  --------------------------------------------------
+
+<div>
+  <button
+    role="tab"
+  />
+</div>"
+`)
+})
+
 describe('configuration', () => {
   let originalConfig
   beforeEach(() => {

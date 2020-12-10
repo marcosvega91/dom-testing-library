@@ -1,7 +1,12 @@
-import {getConfig} from '../config'
-import {checkContainerType} from '../helpers'
-import {getLabels, getRealLabels, getLabelContent} from '../label-helpers'
 import {
+  getConfig,
+  checkContainerType,
+  MatcherOptions,
+  getLabels,
+  getRealLabels,
+  getLabelContent,
+  SelectorMatcherOptions,
+  isNotNull,
   fuzzyMatches,
   matches,
   makeNormalizer,
@@ -10,20 +15,27 @@ import {
   makeSingleQuery,
   wrapAllByQueryWithSuggestion,
   wrapSingleQueryWithSuggestion,
+  isNull,
 } from './all-utils'
 
-function queryAllLabels(container) {
+type ElementLabels = {
+  node: Element
+  textToMatch: string
+}
+function queryAllLabels(container: Element) {
   return Array.from(container.querySelectorAll('label,input'))
     .map(node => {
       return {node, textToMatch: getLabelContent(node)}
     })
-    .filter(({textToMatch}) => textToMatch !== null)
+    .filter((element): element is ElementLabels =>
+      isNotNull(element.textToMatch),
+    )
 }
 
 function queryAllLabelsByText(
-  container,
-  text,
-  {exact = true, trim, collapseWhitespace, normalizer} = {},
+  container: Element,
+  text: string,
+  {exact = true, trim, collapseWhitespace, normalizer}: MatcherOptions = {},
 ) {
   const matcher = exact ? matches : fuzzyMatches
   const matchNormalizer = makeNormalizer({collapseWhitespace, trim, normalizer})
@@ -38,27 +50,37 @@ function queryAllLabelsByText(
 }
 
 function queryAllByLabelText(
-  container,
-  text,
-  {selector = '*', exact = true, collapseWhitespace, trim, normalizer} = {},
+  container: Element,
+  text: string,
+  {
+    selector = '*',
+    exact = true,
+    collapseWhitespace,
+    trim,
+    normalizer,
+  }: SelectorMatcherOptions = {},
 ) {
   checkContainerType(container)
 
   const matcher = exact ? matches : fuzzyMatches
   const matchNormalizer = makeNormalizer({collapseWhitespace, trim, normalizer})
   const matchingLabelledElements = Array.from(container.querySelectorAll('*'))
-    .filter(element => {
-      return (
-        getRealLabels(element).length || element.hasAttribute('aria-labelledby')
-      )
-    })
-    .reduce((labelledElements, labelledElement) => {
+    .filter(
+      element =>
+        getRealLabels(element).length ||
+        element.hasAttribute('aria-labelledby'),
+    )
+    .reduce<Element[]>((labelledElements, labelledElement) => {
       const labelList = getLabels(container, labelledElement, {selector})
       labelList
         .filter(label => Boolean(label.formControl))
         .forEach(label => {
-          if (matcher(label.content, label.formControl, text, matchNormalizer))
-            labelledElements.push(label.formControl)
+          const formControl = label.formControl
+          if (
+            !isNull(formControl) &&
+            matcher(label.content, label.formControl, text, matchNormalizer)
+          )
+            labelledElements.push(formControl)
         })
       const labelsValue = labelList
         .filter(label => Boolean(label.content))
@@ -105,7 +127,7 @@ function queryAllByLabelText(
 // )
 // however, we can give a more helpful error message than the generic one,
 // so we're writing this one out by hand.
-const getAllByLabelText = (container, text, ...rest) => {
+const getAllByLabelText = (container: Element, text, ...rest) => {
   const els = queryAllByLabelText(container, text, ...rest)
   if (!els.length) {
     const labels = queryAllLabelsByText(container, text, ...rest)
@@ -141,7 +163,10 @@ const getAllByLabelText = (container, text, ...rest) => {
   return els
 }
 
-function getTagNameOfElementAssociatedWithLabelViaFor(container, label) {
+function getTagNameOfElementAssociatedWithLabelViaFor(
+  container: Element,
+  label,
+) {
   const htmlFor = label.getAttribute('for')
   if (!htmlFor) {
     return null
@@ -152,7 +177,7 @@ function getTagNameOfElementAssociatedWithLabelViaFor(container, label) {
 }
 
 // the reason mentioned above is the same reason we're not using buildQueries
-const getMultipleError = (c, text) =>
+const getMultipleError = (container: Element, text) =>
   `Found multiple elements with the text of: ${text}`
 const queryByLabelText = wrapSingleQueryWithSuggestion(
   makeSingleQuery(queryAllByLabelText, getMultipleError),

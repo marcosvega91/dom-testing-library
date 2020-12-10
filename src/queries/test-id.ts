@@ -1,17 +1,27 @@
-import {checkContainerType} from '../helpers'
-import {wrapAllByQueryWithSuggestion} from '../query-helpers'
-import {queryAllByAttribute, getConfig, buildQueries} from './all-utils'
+import {
+  queryAllByAttribute,
+  getConfig,
+  buildQueries,
+  Matcher,
+  MatcherOptions,
+  wrapAllByQueryWithSuggestion,
+  checkContainerType,
+} from './all-utils'
 
 const getTestIdAttribute = () => getConfig().testIdAttribute
 
-function queryAllByTestId(...args) {
-  checkContainerType(...args)
-  return queryAllByAttribute(getTestIdAttribute(), ...args)
+function queryAllByTestId(
+  container: Element,
+  id: Matcher,
+  options: MatcherOptions,
+) {
+  checkContainerType(container)
+  return queryAllByAttribute(getTestIdAttribute(), container, id, options)
 }
 
-const getMultipleError = (c, id) =>
+const getMultipleError = (container: Element, id: Matcher) =>
   `Found multiple elements by: [${getTestIdAttribute()}="${id}"]`
-const getMissingError = (c, id) =>
+const getMissingError = (container: Element, id: Matcher) =>
   `Unable to find an element by: [${getTestIdAttribute()}="${id}"]`
 
 const queryAllByTestIdWithSuggestions = wrapAllByQueryWithSuggestion(

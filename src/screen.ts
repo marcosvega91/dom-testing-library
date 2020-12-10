@@ -4,21 +4,21 @@ import {getQueriesForElement} from './get-queries-for-element'
 import {logDOM} from './pretty-dom'
 import {getDocument} from './helpers'
 
-function unindent(string) {
+function unindent(text: string) {
   // remove white spaces first, to save a few bytes.
   // testing-playground will reformat on load any ways.
-  return string.replace(/[ \t]*[\n][ \t]*/g, '\n')
+  return text.replace(/[ \t]*[\n][ \t]*/g, '\n')
 }
 
-function encode(value) {
-  return compressToEncodedURIComponent(unindent(value))
+function encode(text: string) {
+  return compressToEncodedURIComponent(unindent(text))
 }
 
-function getPlaygroundUrl(markup) {
+function getPlaygroundUrl(markup: string) {
   return `https://testing-playground.com/#markup=${encode(markup)}`
 }
 
-const debug = (element, maxLength, options) =>
+const debug = (element, maxLength: number, options) =>
   Array.isArray(element)
     ? element.forEach(el => logDOM(el, maxLength, options))
     : logDOM(element, maxLength, options)

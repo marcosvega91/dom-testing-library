@@ -1,13 +1,39 @@
 import {getSuggestedQuery} from './suggestions'
-import {fuzzyMatches, matches, makeNormalizer} from './matches'
+import {
+  fuzzyMatches,
+  matches,
+  makeNormalizer,
+  MatcherOptions,
+  Matcher,
+} from './matches'
 import {waitFor} from './wait-for'
 import {getConfig} from './config'
+import {isNotNull} from './types'
 
-function getElementError(message, container) {
+export interface SelectorMatcherOptions extends MatcherOptions {
+  selector?: string
+}
+
+export type ErrorQueryFN<Arguments extends any[]> = (
+  container: Element,
+  ...args: Arguments
+) => string
+
+export type QueryMethod<Arguments extends any[], Return> = (
+  container: Element,
+  ...args: Arguments
+) => Return
+
+export type GetAllBy<Arguments extends any[]> = QueryMethod<
+  Arguments,
+  Element[]
+>
+
+function getElementError(message: string | null, container: Element) {
   return getConfig().getElementError(message, container)
 }
 
-function getMultipleElementsFoundError(message, container) {
+function getMultipleElementsFoundError(message: string, container: Element) {
   return getElementError(
     `${message}\n\n(If this is intentional, then use the \`*AllBy*\` variant of the query (like \`queryAllByText\`, \`getAllByText\`, or \`findAllByText\`)).`,
     container,
@@ -15,20 +41,31 @@ function getMultipleElementsFoundError(message, container) {
 }
 
 function queryAllByAttribute(
-  attribute,
-  container,
-  text,
-  {exact = true, collapseWhitespace, trim, normalizer} = {},
+  attribute: string,
+  container: Element,
+  text: Matcher,
+  {exact = true, collapseWhitespace, trim, normalizer}: MatcherOptions = {},
 ) {
   const matcher = exact ? matches : fuzzyMatches
   const matchNormalizer = makeNormalizer({collapseWhitespace, trim, normalizer})
-  return Array.from(container.querySelectorAll(`[${attribute}]`)).filter(node =>
-    matcher(node.getAttribute(attribute), node, text, matchNormalizer),
+  return Array.from(container.querySelectorAll(`[${attribute}]`)).filter(
+    node => {
+      const attributeValue = node.getAttribute(attribute)
+      if (isNotNull(attributeValue)) {
+        return matcher(attributeValue, node, text, matchNormalizer)
+      }
+      return false
+    },
   )
 }
 
-function queryByAttribute(attribute, container, text, ...args) {
-  const els = queryAllByAttribute(attribute, container, text, ...args)
+function queryByAttribute(
+  attribute: string,
+  container: Element,
+  text: Matcher,
+  options?: MatcherOptions,
+) {
+  const els = queryAllByAttribute(attribute, container, text, options)
   if (els.length > 1) {
     throw getMultipleElementsFoundError(
       `Found multiple elements by [${attribute}=${text}]`,
@@ -41,8 +78,11 @@ function queryByAttribute(attribute, container, text, ...args) {
 // this accepts a query function and returns a function which throws an error
 // if more than one elements is returned, otherwise it returns the first
 // element or null
-function makeSingleQuery(allQuery, getMultipleError) {
-  return (container, ...args) => {
+function makeSingleQuery<Arguments extends any[]>(
+  allQuery: GetAllBy<Arguments>,
+  getMultipleError: ErrorQueryFN<Arguments>,
+) {
+  return (container: Element, ...args: Arguments) => {
     const els = allQuery(container, ...args)
     if (els.length > 1) {
       const elementStrings = els
@@ -62,7 +102,7 @@ ${elementStrings}`,
   }
 }
 
-function getSuggestionError(suggestion, container) {
+function getSuggestionError(suggestion, container: Element) {
   return getConfig().getElementError(
     `A better query is available, try this:
 ${suggestion.toString()}
@@ -73,8 +113,11 @@ ${suggestion.toString()}
 
 // this accepts a query function and returns a function which throws an error
 // if an empty list of elements is returned
-function makeGetAllQuery(allQuery, getMissingError) {
-  return (container, ...args) => {
+function makeGetAllQuery<Arguments extends any[]>(
+  allQuery: GetAllBy<Arguments>,
+  getMissingError: ErrorQueryFN<Arguments>,
+) {
+  return (container: Element, ...args: Arguments) => {
     const els = allQuery(container, ...args)
     if (!els.length) {
       throw getConfig().getElementError(
@@ -90,14 +133,14 @@ function makeGetAllQuery(allQuery, getMissingError) {
 // this accepts a getter query function and returns a function which calls
 // waitFor and passing a function which invokes the getter.
 function makeFindQuery(getter) {
-  return (container, text, options, waitForOptions) =>
+  return (container: Element, text, options, waitForOptions) =>
     waitFor(() => {
       return getter(container, text, options)
     }, waitForOptions)
 }
 
 const wrapSingleQueryWithSuggestion = (query, queryAllByName, variant) => (
-  container,
+  container: Element,
   ...args
 ) => {
   const element = query(container, ...args)
@@ -113,7 +156,7 @@ const wrapSingleQueryWithSuggestion = (query, queryAllByName, variant) => (
 }
 
 const wrapAllByQueryWithSuggestion = (query, queryAllByName, variant) => (
-  container,
+  container: Element,
   ...args
 ) => {
   const els = query(container, ...args)
@@ -140,7 +183,11 @@ const wrapAllByQueryWithSuggestion = (query, queryAllByName, variant) => (
   return els
 }
 
-function buildQueries(queryAllBy, getMultipleError, getMissingError) {
+function buildQueries<Arguments extends any[]>(
+  queryAllBy: GetAllBy<Arguments>,
+  getMultipleError: (container: Element, ...args: Arguments) => string,
+  getMissingError: (container: Element, ...args: Arguments) => string,
+) {
   const queryBy = wrapSingleQueryWithSuggestion(
     makeSingleQuery(queryAllBy, getMultipleError),
     queryAllBy.name,

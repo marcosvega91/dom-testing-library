@@ -1,3 +1,4 @@
+import {Nullish} from './types'
 import {
   getWindowFromNode,
   getDocument,
@@ -11,14 +12,28 @@ import {
 } from './helpers'
 import {getConfig, runWithExpensiveErrorDiagnosticsDisabled} from './config'
 
-// This is so the stack trace the developer sees is one that's
-// closer to their code (because async stack traces are hard to follow).
-function copyStackTrace(target, source) {
-  target.stack = source.stack.replace(source.message, target.message)
+export interface WaitForOptions {
+  container: Document
+  timeout?: number
+  showOriginalStackTrace: boolean
+  stackTraceError?: Error
+  interval?: number
+  onTimeout?: (error: Error) => Error
+  mutationObserverOptions?: MutationObserverInit
 }
 
-function waitFor(
-  callback,
+export type WaitForCallbback<T> = () => T | Promise<T>
+
+// This is so the stack trace the developer sees is one that's
+// closer to their code (because async stack traces are hard to follow).
+function copyStackTrace(target?: Error, source?: Error) {
+  if (target && source) {
+    target.stack = source.stack?.replace(source.message, target.message)
+  }
+}
+
+function waitFor<T>(
+  callback: WaitForCallbback<T>,
   {
     container = getDocument(),
     timeout = getConfig().asyncUtilTimeout,
@@ -38,18 +53,20 @@ function waitFor(
       attributes: true,
       characterData: true,
     },
-  },
-) {
+  }: WaitForOptions,
+): Promise<Nullish<T>> {
   if (typeof callback !== 'function') {
     throw new TypeError('Received `callback` arg must be a function')
   }
 
   return new Promise(async (resolve, reject) => {
-    let lastError, intervalId, observer
+    let lastError: Error | null,
+      intervalId: NodeJS.Timeout,
+      observer: MutationObserver
     let finished = false
     let promiseStatus = 'idle'
 
-    const overallTimeoutTimer = setTimeout(handleTimeout, timeout)
+    const overallTimeoutTimer: number = setTimeout(handleTimeout, timeout)
 
     const usingFakeTimers = jestFakeTimersAreEnabled()
     if (usingFakeTimers) {
@@ -58,7 +75,7 @@ function waitFor(
       // infinite loop. However, eslint isn't smart enough to know that we're
       // setting finished inside `onDone` which will be called when we're done
       // waiting or when we've timed out.
-      // eslint-disable-next-line no-unmodified-loop-condition
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, no-unmodified-loop-condition
       while (!finished) {
         if (!jestFakeTimersAreEnabled()) {
           const error = new Error(
@@ -90,13 +107,16 @@ function waitFor(
       }
     } else {
       intervalId = setInterval(checkRealTimersCallback, interval)
-      const {MutationObserver} = getWindowFromNode(container)
-      observer = new MutationObserver(checkRealTimersCallback)
-      observer.observe(container, mutationObserverOptions)
+      const window = getWindowFromNode(container)
+      if (window) {
+        const {MutationObserver} = window
+        observer = new MutationObserver(checkRealTimersCallback)
+        observer.observe(container, mutationObserverOptions)
+      }
       checkCallback()
     }
 
-    function onDone(error, result) {
+    function onDone(error: Nullish<Error>, result: Nullish<T>) {
       finished = true
       clearTimeout(overallTimeoutTimer)
 
@@ -127,8 +147,11 @@ function waitFor(
     function checkCallback() {
       if (promiseStatus === 'pending') return
       try {
-        const result = runWithExpensiveErrorDiagnosticsDisabled(callback)
-        if (typeof result?.then === 'function') {
+        const result:
+          | T
+          | Promise<T>
+          | null = runWithExpensiveErrorDiagnosticsDisabled(callback)
+        if (result && 'then' in result && typeof result.then === 'function') {
           promiseStatus = 'pending'
           result.then(
             resolvedValue => {
@@ -141,7 +164,7 @@ function waitFor(
             },
           )
         } else {
-          onDone(null, result)
+          onDone(null, result as T)
         }
         // If `callback` throws, wait for the next mutation, interval, or timeout.
       } catch (error) {
@@ -171,7 +194,10 @@ function waitFor(
   })
 }
 
-function waitForWrapper(callback, options) {
+function waitForWrapper<T>(
+  callback: WaitForCallbback<T>,
+  options: WaitForOptions,
+) {
   // create the error here so its stack trace is as close to the
   // calling code as possible
   const stackTraceError = new Error('STACK_TRACE_MESSAGE')
@@ -184,16 +210,15 @@ let hasWarned = false
 
 // deprecated... TODO: remove this method. We renamed this to `waitFor` so the
 // code people write reads more clearly.
-function wait(...args) {
+function wait<T>(callback: WaitForCallbback<T>, options: WaitForOptions) {
   // istanbul ignore next
-  const [first = () => {}, ...rest] = args
   if (!hasWarned) {
     hasWarned = true
     console.warn(
       `\`wait\` has been deprecated and replaced by \`waitFor\` instead. In most cases you should be able to find/replace \`wait\` with \`waitFor\`. Learn more: https://testing-library.com/docs/dom-testing-library/api-async#waitfor.`,
     )
   }
-  return waitForWrapper(first, ...rest)
+  return waitForWrapper(callback, options)
 }
 
 export {waitForWrapper as waitFor, wait}

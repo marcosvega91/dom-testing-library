@@ -16,6 +16,7 @@ test('returns global document if exists', () => {
 describe('window retrieval throws when given something other than a node', () => {
   test('Promise as node', () => {
     expect(() =>
+      // @ts-expect-error check if promise throw a specific error
       getWindowFromNode(new Promise(jest.fn())),
     ).toThrowErrorMatchingInlineSnapshot(
       `"It looks like you passed a Promise object instead of a DOM node. Did you do something like \`fireEvent.click(screen.findBy...\` when you meant to use a \`getBy\` query \`fireEvent.click(screen.getBy...\`, or await the findBy query \`fireEvent.click(await screen.findBy...\`?"`,
@@ -42,11 +43,13 @@ describe('query container validation throws when validation fails', () => {
     )
   })
   test('array as container', () => {
+    // @ts-expect-error to check that array throw error
     expect(() => checkContainerType([])).toThrowErrorMatchingInlineSnapshot(
       `"Expected container to be an Element, a Document or a DocumentFragment but got Array."`,
     )
   })
   test('object as container', () => {
+    // @ts-expect-error to check that array throw error
     expect(() => checkContainerType({})).toThrowErrorMatchingInlineSnapshot(
       `"Expected container to be an Element, a Document or a DocumentFragment but got Object."`,
     )

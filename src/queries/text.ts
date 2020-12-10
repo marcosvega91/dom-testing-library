@@ -1,17 +1,23 @@
-import {wrapAllByQueryWithSuggestion} from '../query-helpers'
-import {checkContainerType} from '../helpers'
-import {DEFAULT_IGNORE_TAGS} from '../config'
 import {
   fuzzyMatches,
   matches,
   makeNormalizer,
   getNodeText,
   buildQueries,
+  SelectorMatcherOptions,
+  DEFAULT_IGNORE_TAGS,
+  checkContainerType,
+  wrapAllByQueryWithSuggestion,
+  Matcher,
 } from './all-utils'
 
+export interface ByTextOptions extends SelectorMatcherOptions {
+  ignore?: string
+}
+
 function queryAllByText(
-  container,
-  text,
+  container: Element,
+  text: Matcher,
   {
     selector = '*',
     exact = true,
@@ -19,12 +25,12 @@ function queryAllByText(
     trim,
     ignore = DEFAULT_IGNORE_TAGS,
     normalizer,
-  } = {},
+  }: ByTextOptions = {},
 ) {
   checkContainerType(container)
   const matcher = exact ? matches : fuzzyMatches
   const matchNormalizer = makeNormalizer({collapseWhitespace, trim, normalizer})
-  let baseArray = []
+  let baseArray: Element[] = []
   if (typeof container.matches === 'function' && container.matches(selector)) {
     baseArray = [container]
   }
@@ -33,9 +39,9 @@ function queryAllByText(
     .filter(node => matcher(getNodeText(node), node, text, matchNormalizer))
 }
 
-const getMultipleError = (c, text) =>
+const getMultipleError = (container: Element, text: Matcher) =>
   `Found multiple elements with the text: ${text}`
-const getMissingError = (c, text) =>
+const getMissingError = (container: Element, text: Matcher) =>
   `Unable to find an element with the text: ${text}. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.`
 
 const queryAllByTextWithSuggestions = wrapAllByQueryWithSuggestion(

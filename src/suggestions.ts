@@ -7,15 +7,20 @@ import {getLabels} from './label-helpers'
 
 const normalize = getDefaultNormalizer()
 
-function escapeRegExp(string) {
-  return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&') // $& means the whole matched string
+function escapeRegExp(text: string) {
+  return text.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&') // $& means the whole matched string
 }
 
-function getRegExpMatcher(string) {
-  return new RegExp(escapeRegExp(string.toLowerCase()), 'i')
+function getRegExpMatcher(text: string) {
+  return new RegExp(escapeRegExp(text.toLowerCase()), 'i')
 }
 
-function makeSuggestion(queryName, element, content, {variant, name}) {
+function makeSuggestion(
+  queryName: string,
+  element: Element,
+  content,
+  {variant, name},
+) {
   let warning = ''
   const queryOptions = {}
   const queryArgs = [
@@ -65,7 +70,7 @@ function makeSuggestion(queryName, element, content, {variant, name}) {
   }
 }
 
-function canSuggest(currentMethod, requestedMethod, data) {
+function canSuggest(currentMethod: string, requestedMethod: string, data) {
   return (
     data &&
     (!requestedMethod ||
@@ -73,7 +78,11 @@ function canSuggest(currentMethod, requestedMethod, data) {
   )
 }
 
-export function getSuggestedQuery(element, variant = 'get', method) {
+export function getSuggestedQuery(
+  element: Element,
+  variant = 'get',
+  method: string,
+) {
   // don't create suggestions for script and style elements
   if (element.matches(DEFAULT_IGNORE_TAGS)) {
     return undefined

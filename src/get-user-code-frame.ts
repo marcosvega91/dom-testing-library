@@ -1,21 +1,38 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import {SourceLocation, BabelCodeFrameOptions} from '@babel/code-frame'
+import {Nullish} from './types'
+
 // We try to load node dependencies
-let chalk = null
-let readFileSync = null
-let codeFrameColumns = null
+
+type ReadFileSyncPolyfil = (filename: string, encoding: string) => string
+type CodeFrameColumnPolyfil = (
+  rawLines: string,
+  location: SourceLocation,
+  options?: BabelCodeFrameOptions,
+) => string
+type ChalkPolyfil = {dim: (text: string) => string}
+
+let chalk: Nullish<ChalkPolyfil> = null
+let readFileSync: Nullish<ReadFileSyncPolyfil> = null
+let codeFrameColumns: Nullish<CodeFrameColumnPolyfil> = null
 
 try {
-  const nodeRequire = module && module.require
+  const nodeRequire = module.require
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   readFileSync = nodeRequire.call(module, 'fs').readFileSync
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   codeFrameColumns = nodeRequire.call(module, '@babel/code-frame')
     .codeFrameColumns
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   chalk = nodeRequire.call(module, 'chalk')
 } catch {
   // We're in a browser environment
 }
 
 // frame has the form "at myMethod (location/to/my/file.js:10:2)"
-function getCodeFrame(frame) {
+function getCodeFrame(frame: string): string {
+  if (!readFileSync || !codeFrameColumns || !chalk) return ''
   const locationStart = frame.indexOf('(') + 1
   const locationEnd = frame.indexOf(')')
   const frameLocation = frame.slice(locationStart, locationEnd)
@@ -54,12 +71,13 @@ function getUserCodeFrame() {
     return ''
   }
   const err = new Error()
-  const firstClientCodeFrame = err.stack
+  const firstClientCodeFrame = (err.stack ?? '')
     .split('\n')
     .slice(1) // Remove first line which has the form "Error: TypeError"
     .find(frame => !frame.includes('node_modules/')) // Ignore frames from 3rd party libraries
+  if (firstClientCodeFrame) return getCodeFrame(firstClientCodeFrame)
 
-  return getCodeFrame(firstClientCodeFrame)
+  return ''
 }
 
 export {getUserCodeFrame}

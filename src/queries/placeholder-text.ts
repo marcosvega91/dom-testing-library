@@ -1,14 +1,23 @@
-import {wrapAllByQueryWithSuggestion} from '../query-helpers'
-import {checkContainerType} from '../helpers'
-import {queryAllByAttribute, buildQueries} from './all-utils'
+import {
+  queryAllByAttribute,
+  buildQueries,
+  Matcher,
+  MatcherOptions,
+  checkContainerType,
+  wrapAllByQueryWithSuggestion,
+} from './all-utils'
 
-function queryAllByPlaceholderText(...args) {
-  checkContainerType(...args)
-  return queryAllByAttribute('placeholder', ...args)
+function queryAllByPlaceholderText(
+  container: Element,
+  text: Matcher,
+  options: MatcherOptions,
+) {
+  checkContainerType(container)
+  return queryAllByAttribute('placeholder', container, text, options)
 }
-const getMultipleError = (c, text) =>
+const getMultipleError = (container: Element, text: Matcher) =>
   `Found multiple elements with the placeholder text of: ${text}`
-const getMissingError = (c, text) =>
+const getMissingError = (container: Element, text: Matcher) =>
   `Unable to find an element with the placeholder text of: ${text}`
 
 const queryAllByPlaceholderTextWithSuggestions = wrapAllByQueryWithSuggestion(

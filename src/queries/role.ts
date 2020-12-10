@@ -1,6 +1,13 @@
 import {computeAccessibleName} from 'dom-accessibility-api'
 import {roles as allRoles} from 'aria-query'
 import {
+  buildQueries,
+  fuzzyMatches,
+  getConfig,
+  makeNormalizer,
+  matches,
+  checkContainerType,
+  wrapAllByQueryWithSuggestion,
   computeAriaSelected,
   computeAriaChecked,
   computeAriaPressed,
@@ -9,20 +16,55 @@ import {
   prettyRoles,
   isInaccessible,
   isSubtreeInaccessible,
-} from '../role-helpers'
-import {wrapAllByQueryWithSuggestion} from '../query-helpers'
-import {checkContainerType} from '../helpers'
-import {
-  buildQueries,
-  fuzzyMatches,
-  getConfig,
-  makeNormalizer,
-  matches,
+  ByRoleMatcher,
+  MatcherOptions,
 } from './all-utils'
 
+export interface ByRoleOptions extends MatcherOptions {
+  /**
+   * If true includes elements in the query set that are usually excluded from
+   * the accessibility tree. `role="none"` or `role="presentation"` are included
+   * in either case.
+   */
+  hidden?: boolean
+  /**
+   * If true only includes elements in the query set that are marked as
+   * selected in the accessibility tree, i.e., `aria-selected="true"`
+   */
+  selected?: boolean
+  /**
+   * If true only includes elements in the query set that are marked as
+   * checked in the accessibility tree, i.e., `aria-checked="true"`
+   */
+  checked?: boolean
+  /**
+   * If true only includes elements in the query set that are marked as
+   * pressed in the accessibility tree, i.e., `aria-pressed="true"`
+   */
+  pressed?: boolean
+  /**
+   * Includes elements with the `"heading"` role matching the indicated level,
+   * either by the semantic HTML heading elements `<h1>-<h6>` or matching
+   * the `aria-level` attribute.
+   */
+  level?: number
+  /**
+   * Includes every role used in the `role` attribute
+   * For example *ByRole('progressbar', {queryFallbacks: true})` will find <div role="meter progressbar">`.
+   */
+  queryFallbacks?: boolean
+  /**
+   * Only considers  elements with the specified accessible name.
+   */
+  name?:
+    | string
+    | RegExp
+    | ((accessibleName: string, element: Element) => boolean)
+}
+
 function queryAllByRole(
-  container,
-  role,
+  container: Element,
+  role: ByRoleMatcher,
   {
     exact = true,
     collapseWhitespace,
@@ -35,7 +77,7 @@ function queryAllByRole(
     checked,
     pressed,
     level,
-  } = {},
+  }: ByRoleOptions = {},
 ) {
   checkContainerType(container)
   const matcher = exact ? matches : fuzzyMatches

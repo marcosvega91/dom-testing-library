@@ -1,4 +1,10 @@
 import {TEXT_NODE} from './helpers'
+import {isNotNull} from './types'
+
+type GetLabels = {
+  content: string | null
+  formControl: Element | null
+}[]
 
 const labelledNodeNames = [
   'button',
@@ -10,7 +16,9 @@ const labelledNodeNames = [
   'input',
 ]
 
-function getTextContent(node) {
+function getTextContent(
+  node: Node | Element | HTMLInputElement,
+): string | null {
   if (labelledNodeNames.includes(node.nodeName.toLowerCase())) {
     return ''
   }
@@ -22,19 +30,21 @@ function getTextContent(node) {
     .join('')
 }
 
-function getLabelContent(node) {
+function getLabelContent(node: Node | Element | HTMLInputElement) {
   let textContent
-  if (node.tagName.toLowerCase() === 'label') {
+  if ('tagName' in node && node.tagName.toLowerCase() === 'label') {
     textContent = getTextContent(node)
+  } else if ('value' in node) {
+    textContent = node.value
   } else {
-    textContent = node.value || node.textContent
+    textContent = node.textContent
   }
   return textContent
 }
 
 // Based on https://github.com/eps1lon/dom-accessibility-api/pull/352
-function getRealLabels(element) {
-  if (element.labels !== undefined) return element.labels ?? []
+function getRealLabels(element: Element | HTMLInputElement) {
+  if ('labels' in element) return element.labels ?? []
 
   if (!isLabelable(element)) return []
 
@@ -42,17 +52,21 @@ function getRealLabels(element) {
   return Array.from(labels).filter(label => label.control === element)
 }
 
-function isLabelable(element) {
+function isLabelable(element: Element) {
+  const labelableRegex = /BUTTON|METER|OUTPUT|PROGRESS|SELECT|TEXTAREA/
   return (
-    element.tagName.match(/BUTTON|METER|OUTPUT|PROGRESS|SELECT|TEXTAREA/) ||
+    labelableRegex.test(element.tagName) ||
     (element.tagName === 'INPUT' && element.getAttribute('type') !== 'hidden')
   )
 }
 
-function getLabels(container, element, {selector = '*'} = {}) {
-  const labelsId = element.getAttribute('aria-labelledby')
-    ? element.getAttribute('aria-labelledby').split(' ')
-    : []
+function getLabels(
+  container: Element,
+  element: Element,
+  {selector = '*'} = {},
+): GetLabels {
+  const ariaLabelledBy = element.getAttribute('aria-labelledby')
+  const labelsId = isNotNull(ariaLabelledBy) ? ariaLabelledBy.split(' ') : []
   return labelsId.length
     ? labelsId.map(labelId => {
         const labellingElement = container.querySelector(`[id="${labelId}"]`)

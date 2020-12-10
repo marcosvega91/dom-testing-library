@@ -19,7 +19,7 @@ jest.mock('fs', () => ({
 
 const userStackFrame = 'at somethingWrong (/sample-error/error-example.js:7:14)'
 
-let globalErrorMock
+let globalErrorMock: jest.SpyInstance
 
 beforeEach(() => {
   // Mock global.Error so we can setup our own stack messages
@@ -27,7 +27,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  global.Error.mockRestore()
+  globalErrorMock.mockRestore()
 })
 
 test('it returns only user code frame when code frames from node_modules are first', () => {
@@ -36,7 +36,7 @@ test('it returns only user code frame when code frames from node_modules are fir
       ${userStackFrame}
   `
   globalErrorMock.mockImplementationOnce(() => ({stack}))
-  const userTrace = getUserCodeFrame(stack)
+  const userTrace = getUserCodeFrame()
 
   expect(userTrace).toMatchInlineSnapshot(`
     "/sample-error/error-example.js:7:14
@@ -70,7 +70,7 @@ test('it returns only user code frame when node code frames are present afterwar
 
 test("it returns empty string if file from code frame can't be read", () => {
   // Make fire read purposely fail
-  fs.readFileSync.mockImplementationOnce(() => {
+  ;(fs.readFileSync as jest.Mock).mockImplementationOnce(() => {
     throw Error()
   })
   const stack = `Error: Kaboom
@@ -78,5 +78,5 @@ test("it returns empty string if file from code frame can't be read", () => {
   `
   globalErrorMock.mockImplementationOnce(() => ({stack}))
 
-  expect(getUserCodeFrame(stack)).toEqual('')
+  expect(getUserCodeFrame()).toEqual('')
 })

@@ -4,12 +4,15 @@ import {render, renderIntoDocument} from './helpers/test-utils'
 
 jest.mock('../get-user-code-frame')
 
+let logSpy: jest.SpyInstance
+
 beforeEach(() => {
-  jest.spyOn(console, 'log').mockImplementation(() => {})
+  logSpy = jest.spyOn(console, 'log')
+  logSpy.mockImplementation(() => {})
 })
 
 afterEach(() => {
-  console.log.mockRestore()
+  logSpy.mockRestore()
 })
 
 test('prettyDOM prints out the given DOM element tree', () => {
@@ -53,8 +56,8 @@ test('prettyDOM supports receiving the document element', () => {
 test('logDOM logs prettyDOM to the console', () => {
   const {container} = render('<div>Hello World!</div>')
   logDOM(container)
-  expect(console.log).toHaveBeenCalledTimes(1)
-  expect(console.log.mock.calls[0][0]).toMatchInlineSnapshot(`
+  expect(logSpy).toHaveBeenCalledTimes(1)
+  expect(logSpy.mock.calls[0][0]).toMatchInlineSnapshot(`
     "<div>
       <div>
         Hello World!
@@ -64,7 +67,7 @@ test('logDOM logs prettyDOM to the console', () => {
 })
 
 test('logDOM logs prettyDOM with code frame to the console', () => {
-  getUserCodeFrame.mockImplementationOnce(
+  ;(getUserCodeFrame as jest.Mock).mockImplementationOnce(
     () => `"/home/john/projects/sample-error/error-example.js:7:14
       5 |         document.createTextNode('Hello World!')
       6 |       )
@@ -95,16 +98,19 @@ test('logDOM logs prettyDOM with code frame to the console', () => {
 
 describe('prettyDOM fails with first parameter without outerHTML field', () => {
   test('with array', () => {
+    // @ts-expect-error it is userful to handle the error
     expect(() => prettyDOM(['outerHTML'])).toThrowErrorMatchingInlineSnapshot(
       `"Expected an element or document but got Array"`,
     )
   })
   test('with number', () => {
+    // @ts-expect-error it is userful to handle the error
     expect(() => prettyDOM(1)).toThrowErrorMatchingInlineSnapshot(
       `"Expected an element or document but got number"`,
     )
   })
   test('with object', () => {
+    // @ts-expect-error it is userful to handle the error
     expect(() => prettyDOM({})).toThrowErrorMatchingInlineSnapshot(
       `"Expected an element or document but got Object"`,
     )

@@ -1,11 +1,18 @@
-import {wrapAllByQueryWithSuggestion} from '../query-helpers'
-import {checkContainerType} from '../helpers'
-import {matches, fuzzyMatches, makeNormalizer, buildQueries} from './all-utils'
+import {
+  matches,
+  fuzzyMatches,
+  makeNormalizer,
+  buildQueries,
+  Matcher,
+  MatcherOptions,
+  wrapAllByQueryWithSuggestion,
+  checkContainerType,
+} from './all-utils'
 
 function queryAllByAltText(
-  container,
-  alt,
-  {exact = true, collapseWhitespace, trim, normalizer} = {},
+  container: Element,
+  alt: Matcher,
+  {exact = true, collapseWhitespace, trim, normalizer}: MatcherOptions = {},
 ) {
   checkContainerType(container)
   const matcher = exact ? matches : fuzzyMatches
@@ -15,9 +22,9 @@ function queryAllByAltText(
   )
 }
 
-const getMultipleError = (c, alt) =>
+const getMultipleError = (container: Element, alt: Matcher) =>
   `Found multiple elements with the alt text: ${alt}`
-const getMissingError = (c, alt) =>
+const getMissingError = (container: Element, alt: Matcher) =>
   `Unable to find an element with the alt text: ${alt}`
 
 const queryAllByAltTextWithSuggestions = wrapAllByQueryWithSuggestion(

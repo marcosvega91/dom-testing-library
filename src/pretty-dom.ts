@@ -1,6 +1,7 @@
 import prettyFormat from 'pretty-format'
 import {getUserCodeFrame} from './get-user-code-frame'
 import {getDocument} from './helpers'
+import {Nullish} from './types'
 
 function inCypress(dom) {
   const window =
@@ -13,17 +14,21 @@ function inCypress(dom) {
 
 const inNode = () =>
   typeof process !== 'undefined' &&
-  process.versions !== undefined &&
-  process.versions.node !== undefined
+  'versions' in process &&
+  'node' in process.versions
 
-const getMaxLength = dom =>
+const getMaxLength = (dom): number =>
   inCypress(dom)
     ? 0
     : (typeof process !== 'undefined' && process.env.DEBUG_PRINT_LIMIT) || 7000
 
 const {DOMElement, DOMCollection} = prettyFormat.plugins
 
-function prettyDOM(dom, maxLength, options) {
+function prettyDOM(
+  dom?: Nullish<Element | HTMLDocument>,
+  maxLength?: number,
+  options?: prettyFormat.OptionsReceived,
+): string | false {
   if (!dom) {
     dom = getDocument().body
   }
@@ -34,7 +39,7 @@ function prettyDOM(dom, maxLength, options) {
   if (maxLength === 0) {
     return ''
   }
-  if (dom.documentElement) {
+  if ('documentElement' in dom) {
     dom = dom.documentElement
   }
 
@@ -43,9 +48,9 @@ function prettyDOM(dom, maxLength, options) {
     domTypeName = dom.constructor.name
   } else {
     // To don't fall with `in` operator
-    dom = {}
+    dom = undefined
   }
-  if (!('outerHTML' in dom)) {
+  if (!dom || !('outerHTML' in dom)) {
     throw new TypeError(
       `Expected an element or document but got ${domTypeName}`,
     )
@@ -57,7 +62,7 @@ function prettyDOM(dom, maxLength, options) {
     highlight: inNode(),
     ...options,
   })
-  return maxLength !== undefined && dom.outerHTML.length > maxLength
+  return dom.outerHTML.length > maxLength
     ? `${debugContent.slice(0, maxLength)}...`
     : debugContent
 }

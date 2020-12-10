@@ -1,7 +1,7 @@
-import {configure, getConfig} from '../config'
+import {configure, getConfig, Config} from '../config'
 
 describe('configuration API', () => {
-  let originalConfig
+  let originalConfig: Config
   beforeEach(() => {
     // Grab the existing configuration so we can restore
     // it at the end of the test
@@ -16,7 +16,7 @@ describe('configuration API', () => {
   })
 
   beforeEach(() => {
-    configure({other: 123})
+    configure({})
   })
 
   describe('getConfig', () => {

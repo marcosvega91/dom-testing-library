@@ -1,36 +1,38 @@
-import {wrapAllByQueryWithSuggestion} from '../query-helpers'
-import {checkContainerType} from '../helpers'
 import {
   fuzzyMatches,
   matches,
   makeNormalizer,
   getNodeText,
   buildQueries,
+  Matcher,
+  checkContainerType,
+  wrapAllByQueryWithSuggestion,
+  MatcherOptions,
 } from './all-utils'
 
-const isSvgTitle = node =>
+const isSvgTitle = (node: Element): node is SVGTitleElement =>
   node.tagName.toLowerCase() === 'title' &&
   node.parentElement?.tagName.toLowerCase() === 'svg'
 
 function queryAllByTitle(
-  container,
-  text,
-  {exact = true, collapseWhitespace, trim, normalizer} = {},
+  container: Element,
+  title: Matcher,
+  {exact = true, collapseWhitespace, trim, normalizer}: MatcherOptions = {},
 ) {
   checkContainerType(container)
   const matcher = exact ? matches : fuzzyMatches
   const matchNormalizer = makeNormalizer({collapseWhitespace, trim, normalizer})
   return Array.from(container.querySelectorAll('[title], svg > title')).filter(
     node =>
-      matcher(node.getAttribute('title'), node, text, matchNormalizer) ||
+      matcher(node.getAttribute('title'), node, title, matchNormalizer) ||
       (isSvgTitle(node) &&
-        matcher(getNodeText(node), node, text, matchNormalizer)),
+        matcher(getNodeText(node), node, title, matchNormalizer)),
   )
 }
 
-const getMultipleError = (c, title) =>
+const getMultipleError = (container: Element, title: Matcher) =>
   `Found multiple elements with the title: ${title}.`
-const getMissingError = (c, title) =>
+const getMissingError = (container: Element, title: Matcher) =>
   `Unable to find an element with the title: ${title}.`
 
 const queryAllByTitleWithSuggestions = wrapAllByQueryWithSuggestion(
